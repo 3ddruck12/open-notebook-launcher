@@ -17,6 +17,9 @@ export function getStackStatusMessage(status: StackStatus, t: Translate): string
 }
 
 export function getInstallInstructions(family: string, t: Translate): string {
+  if (family === "windows") {
+    return t("docker.install.windows");
+  }
   if (family === "debian" || family === "fedora" || family === "arch") {
     return t(`docker.install.${family}`);
   }

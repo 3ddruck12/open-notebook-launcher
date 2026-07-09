@@ -12,5 +12,11 @@ export function isValidPort(value: number): boolean {
 
 export function isValidDataDir(value: string): boolean {
   const trimmed = value.trim();
-  return trimmed.length > 0 && trimmed.startsWith("/");
+  if (trimmed.length === 0) {
+    return false;
+  }
+  if (trimmed.startsWith("/")) {
+    return true;
+  }
+  return /^[a-zA-Z]:[\\/]/.test(trimmed) || trimmed.startsWith("\\\\");
 }

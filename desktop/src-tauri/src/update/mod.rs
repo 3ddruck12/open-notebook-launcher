@@ -37,6 +37,19 @@ pub fn get_install_context() -> InstallContext {
         };
     }
 
+    #[cfg(windows)]
+    if let Ok(exe) = std::env::current_exe() {
+        if exe.extension().is_some_and(|ext| ext == "exe") {
+            return InstallContext {
+                channel: "windows".to_string(),
+                current_version,
+                can_self_update: false,
+                release_page_url: RELEASE_PAGE_URL.to_string(),
+                is_development: false,
+            };
+        }
+    }
+
     if let Ok(exe) = std::env::current_exe() {
         let path = exe.to_string_lossy();
         if path.starts_with("/usr/") || path.starts_with("/opt/") {

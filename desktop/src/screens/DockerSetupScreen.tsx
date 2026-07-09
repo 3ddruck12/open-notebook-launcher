@@ -21,21 +21,27 @@ export function DockerSetupScreen({ onContinue, onBack }: DockerSetupScreenProps
   const { t } = useI18n();
   const [status, setStatus] = useState<DockerStatus | null>(null);
   const [distro, setDistro] = useState<DistroInfo | null>(null);
+  const [platform, setPlatform] = useState("linux");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   async function refresh() {
-    const [docker, detected] = await Promise.all([api.checkDocker(), api.detectDistro()]);
+    const [docker, detected, detectedPlatform] = await Promise.all([
+      api.checkDocker(),
+      api.detectDistro(),
+      api.getPlatform(),
+    ]);
     setStatus(docker);
     setDistro(detected);
+    setPlatform(detectedPlatform);
   }
 
   useEffect(() => {
     void refresh();
   }, []);
 
-  const guidance = status ? getDockerGuidance(status, t) : null;
+  const guidance = status ? getDockerGuidance(status, t, platform) : null;
   const ready = guidance?.situation === "ready";
 
   async function runAction(action: () => Promise<string>, successHint?: string) {
@@ -161,13 +167,22 @@ export function DockerSetupScreen({ onContinue, onBack }: DockerSetupScreenProps
               <div className="space-y-4 border-t border-white/10 pt-4">
                 <h3 className="text-sm font-semibold text-white">{t("docker.advancedOptions")}</h3>
                 <div className="flex flex-wrap gap-3">
-                  {guidance.situation === "cli_missing" ? (
+                  {guidance.situation === "cli_missing" && platform !== "windows" ? (
                     <Button
                       variant="secondary"
                       disabled={loading}
                       onClick={() => runAction(() => api.installDesktop())}
                     >
                       {t("docker.installDesktop")}
+                    </Button>
+                  ) : null}
+                  {guidance.situation === "cli_missing" && platform === "windows" ? (
+                    <Button
+                      variant="secondary"
+                      disabled={loading}
+                      onClick={() => runAction(() => api.installEngine())}
+                    >
+                      {t("docker.installEngine")}
                     </Button>
                   ) : null}
                   {guidance.situation !== "daemon_stopped" ? (

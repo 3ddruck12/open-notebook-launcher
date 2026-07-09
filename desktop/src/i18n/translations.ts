@@ -88,6 +88,11 @@ export const translations: Record<Language, TranslationTree> = {
             "Auf deinem System wurde Docker noch nicht gefunden. Für Linux empfehlen wir Docker Engine — leichtgewichtig und ideal für Open Notebook.",
           action: "Docker Engine jetzt installieren",
           hint: "Die Installation fragt nach deinem Administrator-Passwort. Danach wirst du automatisch weitergeführt.",
+          windowsDescription:
+            "Auf deinem System wurde Docker noch nicht gefunden. Unter Windows benötigst du Docker Desktop, damit Open Notebook den Stack starten kann.",
+          windowsAction: "Docker Desktop jetzt installieren",
+          windowsHint:
+            "Die Installation kann Administratorrechte erfordern. Starte Docker Desktop danach und warte, bis es bereit ist.",
         },
         daemonStopped: {
           headline: "Docker-Dienst starten",
@@ -95,6 +100,12 @@ export const translations: Record<Language, TranslationTree> = {
             "Docker ist installiert, aber der Hintergrunddienst läuft nicht. Starte ihn mit einem Klick — danach prüfen wir den Status erneut.",
           action: "Docker-Dienst jetzt starten",
           hint: "Falls das nicht funktioniert, starte Docker manuell mit: sudo systemctl start docker",
+          windowsHeadline: "Docker Desktop starten",
+          windowsDescription:
+            "Docker Desktop ist installiert, läuft aber noch nicht. Starte es und warte, bis die Engine bereit ist.",
+          windowsAction: "Docker Desktop starten",
+          windowsHint:
+            "Falls das nicht funktioniert, starte Docker Desktop manuell aus dem Startmenü und warte auf „Docker Desktop is running“.",
         },
         composeMissing: {
           headline: "Docker Compose fehlt",
@@ -102,6 +113,10 @@ export const translations: Record<Language, TranslationTree> = {
             "Docker ist installiert, aber das Compose-Plugin fehlt. Open Notebook benötigt Compose, um den Stack zu starten.",
           action: "Docker Engine mit Compose installieren",
           hint: "Alternativ: sudo apt install docker-compose-plugin (Debian/Ubuntu)",
+          windowsDescription:
+            "Docker ist installiert, aber Docker Compose fehlt. Das ist bei Docker Desktop ungewöhnlich — eine Neuinstallation behebt das meist.",
+          windowsAction: "Docker Desktop installieren/reparieren",
+          windowsHint: "Stelle sicher, dass Docker Desktop vollständig installiert und gestartet ist.",
         },
         groupMissing: {
           headline: "Neu anmelden erforderlich",
@@ -129,6 +144,8 @@ export const translations: Record<Language, TranslationTree> = {
           "Manuelle Installation (Arch):\n1. sudo pacman -S docker docker-compose\n2. sudo systemctl enable --now docker\n3. sudo usermod -aG docker $USER\n4. Abmelden und neu anmelden",
         unknown:
           "Allgemeine Anleitung:\nBesuche https://docs.docker.com/engine/install/ und installiere Docker Engine für deine Distribution.\nDanach: sudo usermod -aG docker $USER und neu anmelden.",
+        windows:
+          "Manuelle Installation (Windows):\n1. Lade Docker Desktop von https://desktop.docker.com/win/main/amd64/Docker%20Desktop%20Installer.exe\n2. Starte Docker Desktop und warte, bis es bereit ist\n3. Aktiviere WSL 2, falls der Installer danach fragt\n4. Starte Open Notebook Desktop erneut",
       },
     },
     splash: {
@@ -372,6 +389,11 @@ export const translations: Record<Language, TranslationTree> = {
             "Docker was not found on your system. For Linux we recommend Docker Engine — lightweight and ideal for Open Notebook.",
           action: "Install Docker Engine now",
           hint: "Installation will ask for your administrator password. You will be guided through the next steps automatically.",
+          windowsDescription:
+            "Docker was not found on your system. On Windows you need Docker Desktop so Open Notebook can start the stack.",
+          windowsAction: "Install Docker Desktop now",
+          windowsHint:
+            "Installation may require administrator rights. Start Docker Desktop afterwards and wait until it is ready.",
         },
         daemonStopped: {
           headline: "Start Docker service",
@@ -379,6 +401,12 @@ export const translations: Record<Language, TranslationTree> = {
             "Docker is installed but the background service is not running. Start it with one click — we will check the status again afterwards.",
           action: "Start Docker service now",
           hint: "If that does not work, start Docker manually with: sudo systemctl start docker",
+          windowsHeadline: "Start Docker Desktop",
+          windowsDescription:
+            "Docker Desktop is installed but not running yet. Start it and wait until the engine is ready.",
+          windowsAction: "Start Docker Desktop",
+          windowsHint:
+            "If that does not work, start Docker Desktop manually from the Start menu and wait for “Docker Desktop is running”.",
         },
         composeMissing: {
           headline: "Docker Compose is missing",
@@ -386,6 +414,10 @@ export const translations: Record<Language, TranslationTree> = {
             "Docker is installed but the Compose plugin is missing. Open Notebook needs Compose to start the stack.",
           action: "Install Docker Engine with Compose",
           hint: "Alternatively: sudo apt install docker-compose-plugin (Debian/Ubuntu)",
+          windowsDescription:
+            "Docker is installed but Docker Compose is missing. This is unusual with Docker Desktop — reinstalling usually fixes it.",
+          windowsAction: "Install/repair Docker Desktop",
+          windowsHint: "Make sure Docker Desktop is fully installed and running.",
         },
         groupMissing: {
           headline: "Log out and back in required",
@@ -413,6 +445,8 @@ export const translations: Record<Language, TranslationTree> = {
           "Manual installation (Arch):\n1. sudo pacman -S docker docker-compose\n2. sudo systemctl enable --now docker\n3. sudo usermod -aG docker $USER\n4. Log out and back in",
         unknown:
           "General instructions:\nVisit https://docs.docker.com/engine/install/ and install Docker Engine for your distribution.\nThen run: sudo usermod -aG docker $USER and log out and back in.",
+        windows:
+          "Manual installation (Windows):\n1. Download Docker Desktop from https://desktop.docker.com/win/main/amd64/Docker%20Desktop%20Installer.exe\n2. Start Docker Desktop and wait until it is ready\n3. Enable WSL 2 if the installer asks for it\n4. Restart Open Notebook Desktop",
       },
     },
     splash: {

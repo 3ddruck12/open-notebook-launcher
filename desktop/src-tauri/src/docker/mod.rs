@@ -52,12 +52,20 @@ pub fn check_docker_status() -> DockerStatus {
         .is_some_and(|message| message.to_ascii_lowercase().contains("permission denied"));
 
     let message = if !available {
-        "Docker CLI nicht gefunden. Bitte Docker Engine oder Docker Desktop installieren."
-            .to_string()
+        if cfg!(windows) {
+            "Docker CLI nicht gefunden. Bitte Docker Desktop installieren.".to_string()
+        } else {
+            "Docker CLI nicht gefunden. Bitte Docker Engine oder Docker Desktop installieren."
+                .to_string()
+        }
     } else if !daemon_running && !user_in_group && permission_denied {
         "Docker läuft, aber dein Benutzer hat keine Berechtigung. Melde dich ab und wieder an, nachdem du in der docker-Gruppe bist.".to_string()
     } else if !daemon_running {
-        "Docker ist installiert, aber der Daemon läuft nicht. Starte den Docker-Dienst.".to_string()
+        if cfg!(windows) {
+            "Docker Desktop ist installiert, läuft aber nicht. Starte Docker Desktop und warte, bis es bereit ist.".to_string()
+        } else {
+            "Docker ist installiert, aber der Daemon läuft nicht. Starte den Docker-Dienst.".to_string()
+        }
     } else if !compose_available {
         "Docker Compose Plugin nicht gefunden.".to_string()
     } else if !user_in_group {
@@ -77,13 +85,21 @@ pub fn check_docker_status() -> DockerStatus {
 }
 
 pub fn current_user_in_docker_group() -> bool {
-    let output = Command::new("id").arg("-nG").output();
-    match output {
-        Ok(out) if out.status.success() => {
-            let groups = String::from_utf8_lossy(&out.stdout);
-            groups.split_whitespace().any(|g| g == "docker")
+    #[cfg(windows)]
+    {
+        return true;
+    }
+
+    #[cfg(unix)]
+    {
+        let output = Command::new("id").arg("-nG").output();
+        match output {
+            Ok(out) if out.status.success() => {
+                let groups = String::from_utf8_lossy(&out.stdout);
+                groups.split_whitespace().any(|g| g == "docker")
+            }
+            _ => false,
         }
-        _ => false,
     }
 }
 

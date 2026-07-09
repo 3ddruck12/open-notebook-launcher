@@ -14,8 +14,8 @@ use docker::{
     wait_for_health_with_progress, DockerStatus, StackStatus,
 };
 use install::{
-    detect_distro, get_manual_install_instructions, install_docker_desktop, install_docker_engine,
-    start_docker_service, verify_installation, DistroInfo,
+    current_platform, detect_distro, get_manual_install_instructions, install_docker_desktop,
+    install_docker_engine, start_docker_service, verify_installation, DistroInfo,
 };
 use menu::menu_labels;
 use update::{get_install_context, InstallContext};
@@ -392,6 +392,11 @@ fn check_docker() -> DockerStatus {
 }
 
 #[tauri::command]
+fn get_platform() -> String {
+    current_platform().to_string()
+}
+
+#[tauri::command]
 fn detect_linux_distro() -> DistroInfo {
     detect_distro()
 }
@@ -409,12 +414,13 @@ fn install_engine() -> Result<String, String> {
 #[tauri::command]
 fn install_desktop() -> Result<String, String> {
     let distro = detect_distro();
+    #[cfg(unix)]
     if distro.family != "debian" {
         return Err(
             "Docker Desktop wird nur automatisch auf Debian/Ubuntu amd64 unterstützt.".to_string(),
         );
     }
-    install_docker_desktop().map_err(|e| e.to_string())
+    install_docker_desktop(&distro).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -429,8 +435,13 @@ fn start_docker_daemon() -> Result<String, String> {
 
 #[tauri::command]
 fn open_docker_docs(app: AppHandle) -> Result<(), String> {
+    let url = if cfg!(windows) {
+        "https://docs.docker.com/desktop/setup/install/windows-install/"
+    } else {
+        "https://docs.docker.com/engine/install/"
+    };
     app.opener()
-        .open_url("https://docs.docker.com/engine/install/", None::<&str>)
+        .open_url(url, None::<&str>)
         .map_err(|e| e.to_string())
 }
 
@@ -609,6 +620,7 @@ pub fn run() {
             save_app_config,
             detect_system_language,
             generate_key,
+            get_platform,
             get_install_context_cmd,
             open_release_page,
             check_docker,

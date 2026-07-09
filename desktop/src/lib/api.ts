@@ -17,6 +17,7 @@ export const api = {
       encryptionKey: options?.encryptionKey ?? null,
     }),
   detectSystemLanguage: () => invoke<string>("detect_system_language"),
+  getPlatform: () => invoke<string>("get_platform"),
   getInstallContext: () => invoke<InstallContext>("get_install_context_cmd"),
   openReleasePage: () => invoke<void>("open_release_page"),
   generateKey: () => invoke<string>("generate_key"),
