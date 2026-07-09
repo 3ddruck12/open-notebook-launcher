@@ -10,7 +10,8 @@ use config::{
 };
 use docker::{
     check_docker_status, compose_down, compose_logs, compose_pull, compose_up,
-    get_stack_status_bollard, wait_for_health, wait_for_health_async, DockerStatus, StackStatus,
+    get_stack_status_bollard, wait_for_health, wait_for_health_async,
+    wait_for_health_with_progress, DockerStatus, StackStatus,
 };
 use install::{
     detect_distro, get_manual_install_instructions, install_docker_desktop, install_docker_engine,
@@ -18,6 +19,7 @@ use install::{
 };
 use menu::menu_labels;
 use update::{get_install_context, InstallContext};
+use serde::Serialize;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use tauri::{
@@ -28,6 +30,23 @@ use tauri_plugin_opener::OpenerExt;
 
 struct AppState {
     config: Mutex<AppConfig>,
+}
+
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct LaunchProgress {
+    percent: u8,
+    phase: String,
+}
+
+fn emit_launch_progress(app: &AppHandle, percent: u8, phase: &str) {
+    let _ = app.emit(
+        "launch-progress",
+        LaunchProgress {
+            percent,
+            phase: phase.to_string(),
+        },
+    );
 }
 
 fn get_config_from_state(app: &AppHandle) -> AppConfig {
@@ -142,15 +161,19 @@ fn open_notebook_window_internal(app: &AppHandle, config: &AppConfig) -> Result<
 }
 
 async fn ensure_stack_running(app: &AppHandle, config: &AppConfig) -> Result<(), String> {
+    emit_launch_progress(app, 5, "checkingDocker");
+
     if config.encryption_key.is_empty() {
         return Err("Verschlüsselungsschlüssel fehlt. Bitte Onboarding abschließen.".to_string());
     }
 
+    emit_launch_progress(app, 10, "checkingStack");
     let status = get_stack_status_bollard(config.ui_port)
         .await
         .map_err(|e| e.to_string())?;
 
     if status.healthy {
+        emit_launch_progress(app, 40, "containersStarting");
         return Ok(());
     }
 
@@ -167,6 +190,16 @@ async fn ensure_stack_running(app: &AppHandle, config: &AppConfig) -> Result<(),
     .map_err(|e| e.to_string())?;
 
     let needs_pull = status.containers.iter().any(|c| c.state == "missing");
+    emit_launch_progress(
+        app,
+        15,
+        if needs_pull {
+            "pullingImages"
+        } else {
+            "startingStack"
+        },
+    );
+
     let data_dir = config.data_dir.clone();
 
     tokio::task::spawn_blocking(move || {
@@ -179,7 +212,66 @@ async fn ensure_stack_running(app: &AppHandle, config: &AppConfig) -> Result<(),
     .map_err(|e| e.to_string())?
     .map_err(|e| e.to_string())?;
 
+    emit_launch_progress(app, 35, "containersStarting");
     Ok(())
+}
+
+async fn run_launch_sequence(app: AppHandle, hide_main_on_success: bool) {
+    emit_launch_progress(&app, 0, "checkingDocker");
+    show_launcher(&app, "splash");
+    if let Some(main) = app.get_webview_window("main") {
+        let _ = main.show();
+        let _ = main.set_focus();
+        let _ = main.unminimize();
+    }
+
+    let config = get_config_from_state(&app);
+
+    if config.auto_start_on_launch {
+        if let Err(error) = ensure_stack_running(&app, &config).await {
+            show_launcher(&app, "dashboard");
+            let _ = app.emit("launch-error", error);
+            return;
+        }
+
+        let app_handle = app.clone();
+        let ui_port = config.ui_port;
+        if !wait_for_health_with_progress(ui_port, 120, |percent| {
+            emit_launch_progress(&app_handle, percent, "waitingUi");
+        })
+        .await
+        {
+            show_launcher(&app, "dashboard");
+            let _ = app.emit(
+                "launch-error",
+                "Open Notebook antwortet nicht. Bitte prüfe die Logs im Dashboard.",
+            );
+            return;
+        }
+    } else if !wait_for_health_async(config.ui_port, 5).await {
+        show_launcher(&app, "dashboard");
+        let _ = app.emit(
+            "launch-error",
+            "Open Notebook antwortet noch nicht. Bitte warte, bis der Stack läuft.",
+        );
+        return;
+    }
+
+    emit_launch_progress(&app, 98, "opening");
+    if let Err(error) = open_notebook_window_async(&app, &config).await {
+        show_launcher(&app, "dashboard");
+        let _ = app.emit("launch-error", error);
+        return;
+    }
+
+    emit_launch_progress(&app, 100, "ready");
+    let _ = app.emit("launch-complete", ());
+
+    if hide_main_on_success && config.open_notebook_directly {
+        if let Some(main) = app.get_webview_window("main") {
+            let _ = main.hide();
+        }
+    }
 }
 
 fn spawn_stack_only(app: AppHandle) {
@@ -199,31 +291,7 @@ fn spawn_direct_launch(app: AppHandle) {
             return;
         }
 
-        if let Some(main) = app.get_webview_window("main") {
-            let _ = main.hide();
-        }
-
-        if config.auto_start_on_launch {
-            if let Err(error) = ensure_stack_running(&app, &config).await {
-                show_launcher(&app, "dashboard");
-                let _ = app.emit("launch-error", error);
-                return;
-            }
-
-            if !wait_for_health_async(config.ui_port, 120).await {
-                show_launcher(&app, "dashboard");
-                let _ = app.emit(
-                    "launch-error",
-                    "Open Notebook antwortet nicht. Bitte prüfe die Logs im Dashboard.",
-                );
-                return;
-            }
-        }
-
-        if let Err(error) = open_notebook_window_async(&app, &config).await {
-            show_launcher(&app, "dashboard");
-            let _ = app.emit("launch-error", error);
-        }
+        run_launch_sequence(app, true).await;
     });
 }
 
@@ -233,32 +301,10 @@ fn handle_menu_event(app: &AppHandle, id: &str) {
         "logs" => show_launcher(app, "logs"),
         "settings" => show_launcher(app, "settings"),
         "open-notebook" => {
-            let config = get_config_from_state(app);
-            if config.auto_start_on_launch {
-                let app_handle = app.clone();
-                tauri::async_runtime::spawn(async move {
-                    if let Err(error) = ensure_stack_running(&app_handle, &config).await {
-                        let _ = app_handle.emit("launch-error", error);
-                        show_launcher(&app_handle, "dashboard");
-                        return;
-                    }
-                    if !wait_for_health_async(config.ui_port, 120).await {
-                        let _ = app_handle.emit(
-                            "launch-error",
-                            "Open Notebook antwortet nicht. Bitte prüfe die Logs im Dashboard.",
-                        );
-                        show_launcher(&app_handle, "dashboard");
-                        return;
-                    }
-                    if let Err(error) = open_notebook_window_async(&app_handle, &config).await {
-                        let _ = app_handle.emit("launch-error", error);
-                        show_launcher(&app_handle, "dashboard");
-                    }
-                });
-            } else if let Err(error) = open_notebook_window_internal(app, &config) {
-                let _ = app.emit("launch-error", error);
-                show_launcher(app, "dashboard");
-            }
+            let app_handle = app.clone();
+            tauri::async_runtime::spawn(async move {
+                run_launch_sequence(app_handle, true).await;
+            });
         }
         _ => {}
     }

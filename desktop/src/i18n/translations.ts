@@ -131,6 +131,21 @@ export const translations: Record<Language, TranslationTree> = {
           "Allgemeine Anleitung:\nBesuche https://docs.docker.com/engine/install/ und installiere Docker Engine für deine Distribution.\nDanach: sudo usermod -aG docker $USER und neu anmelden.",
       },
     },
+    splash: {
+      title: "Open Notebook wird gestartet",
+      subtitle: "Docker-Stack und Web-Oberfläche werden vorbereitet.",
+      hint: "Beim ersten Start kann der Download der Images einige Minuten dauern.",
+      phases: {
+        checkingDocker: "Docker wird geprüft…",
+        checkingStack: "Stack-Status wird geprüft…",
+        pullingImages: "Docker-Images werden geladen…",
+        startingStack: "Stack wird gestartet…",
+        containersStarting: "Container starten…",
+        waitingUi: "Web-Oberfläche wird vorbereitet…",
+        opening: "Open Notebook wird geöffnet…",
+        ready: "Fertig",
+      },
+    },
     encryption: {
       title: "Verschlüsselungsschlüssel",
       subtitle:
@@ -390,6 +405,21 @@ export const translations: Record<Language, TranslationTree> = {
           "Manual installation (Arch):\n1. sudo pacman -S docker docker-compose\n2. sudo systemctl enable --now docker\n3. sudo usermod -aG docker $USER\n4. Log out and back in",
         unknown:
           "General instructions:\nVisit https://docs.docker.com/engine/install/ and install Docker Engine for your distribution.\nThen run: sudo usermod -aG docker $USER and log out and back in.",
+      },
+    },
+    splash: {
+      title: "Starting Open Notebook",
+      subtitle: "Preparing the Docker stack and web interface.",
+      hint: "The first start may take a few minutes while Docker images are downloaded.",
+      phases: {
+        checkingDocker: "Checking Docker…",
+        checkingStack: "Checking stack status…",
+        pullingImages: "Downloading Docker images…",
+        startingStack: "Starting stack…",
+        containersStarting: "Starting containers…",
+        waitingUi: "Preparing web interface…",
+        opening: "Opening Open Notebook…",
+        ready: "Ready",
       },
     },
     encryption: {

@@ -73,6 +73,22 @@ export type Screen =
   | "welcome"
   | "docker"
   | "encryption"
+  | "splash"
   | "dashboard"
   | "logs"
   | "settings";
+
+export type LaunchPhase =
+  | "checkingDocker"
+  | "checkingStack"
+  | "pullingImages"
+  | "startingStack"
+  | "containersStarting"
+  | "waitingUi"
+  | "opening"
+  | "ready";
+
+export interface LaunchProgress {
+  percent: number;
+  phase: LaunchPhase | string;
+}

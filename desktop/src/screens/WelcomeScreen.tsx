@@ -1,6 +1,7 @@
 import { LANGUAGE_LABELS, type Language } from "../i18n/languages";
 import { useI18n } from "../i18n";
 import { LanguageSelect } from "../components/LanguageSelect";
+import { HeroGraphic } from "../components/HeroGraphic";
 import { Button, Card, ScreenShell } from "../components/ui";
 
 interface WelcomeScreenProps {
@@ -14,6 +15,9 @@ export function WelcomeScreen({ language, onLanguageChange, onContinue }: Welcom
 
   return (
     <ScreenShell title={t("welcome.title")} subtitle={t("welcome.subtitle")}>
+      <div className="mb-6 flex justify-center">
+        <HeroGraphic size={160} />
+      </div>
       <Card className="space-y-6">
         <LanguageSelect
           label={t("common.language")}

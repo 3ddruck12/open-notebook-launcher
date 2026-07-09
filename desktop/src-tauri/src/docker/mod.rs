@@ -99,28 +99,67 @@ pub fn run_command(program: &str, args: &[&str]) -> Result<String, String> {
     }
 }
 
-async fn is_ui_reachable(port: u16) -> bool {
-    let addr = format!("127.0.0.1:{port}");
-    tokio::time::timeout(
-        std::time::Duration::from_millis(800),
-        tokio::net::TcpStream::connect(addr),
-    )
-    .await
-    .map(|result| result.is_ok())
-    .unwrap_or(false)
+fn check_http_health(port: u16) -> bool {
+    let url = format!("http://127.0.0.1:{port}/");
+    reqwest::blocking::Client::builder()
+        .timeout(std::time::Duration::from_secs(2))
+        .build()
+        .ok()
+        .and_then(|client| client.get(&url).send().ok())
+        .map(|response| {
+            response.status().is_success() || response.status().is_redirection()
+        })
+        .unwrap_or(false)
 }
 
-pub async fn get_stack_status_bollard(ui_port: u16) -> Result<StackStatus, DockerError> {
+async fn is_ui_reachable(port: u16) -> bool {
+    tokio::task::spawn_blocking(move || check_http_health(port))
+        .await
+        .unwrap_or(false)
+}
+
+fn is_transient_docker_error(message: &str) -> bool {
+    let lower = message.to_ascii_lowercase();
+    lower.contains("connection reset")
+        || lower.contains("error receiving data")
+        || lower.contains("broken pipe")
+        || lower.contains("connection aborted")
+}
+
+async fn list_containers_with_retry() -> Result<Vec<bollard::models::ContainerSummary>, DockerError> {
     let docker = bollard::Docker::connect_with_local_defaults()
         .map_err(|e| DockerError::Message(e.to_string()))?;
 
-    let containers = docker
-        .list_containers::<String>(Some(bollard::container::ListContainersOptions {
-            all: true,
-            ..Default::default()
-        }))
-        .await
-        .map_err(|e| DockerError::Message(e.to_string()))?;
+    let mut last_error = None;
+
+    for attempt in 0..3 {
+        match docker
+            .list_containers::<String>(Some(bollard::container::ListContainersOptions {
+                all: true,
+                ..Default::default()
+            }))
+            .await
+        {
+            Ok(containers) => return Ok(containers),
+            Err(error) => {
+                let message = error.to_string();
+                if is_transient_docker_error(&message) && attempt < 2 {
+                    last_error = Some(message);
+                    tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+                    continue;
+                }
+                return Err(DockerError::Message(message));
+            }
+        }
+    }
+
+    Err(DockerError::Message(
+        last_error.unwrap_or_else(|| "Docker-Verbindung fehlgeschlagen.".to_string()),
+    ))
+}
+
+pub async fn get_stack_status_bollard(ui_port: u16) -> Result<StackStatus, DockerError> {
+    let containers = list_containers_with_retry().await?;
 
     let target_names = [
         "open-notebook-desktop-surrealdb",
@@ -243,13 +282,32 @@ pub fn compose_logs(data_dir: &str, tail: usize) -> Result<String, DockerError> 
 }
 
 pub async fn wait_for_health_async(port: u16, timeout_secs: u64) -> bool {
-    let deadline =
-        tokio::time::Instant::now() + std::time::Duration::from_secs(timeout_secs);
+    wait_for_health_with_progress(port, timeout_secs, |_| {}).await
+}
 
-    while tokio::time::Instant::now() < deadline {
+pub async fn wait_for_health_with_progress<F>(
+    port: u16,
+    timeout_secs: u64,
+    mut on_progress: F,
+) -> bool
+where
+    F: FnMut(u8),
+{
+    let start = tokio::time::Instant::now();
+    let timeout = std::time::Duration::from_secs(timeout_secs);
+    const START_PERCENT: u8 = 45;
+    const END_PERCENT: u8 = 95;
+
+    while start.elapsed() < timeout {
         if is_ui_reachable(port).await {
+            on_progress(100);
             return true;
         }
+
+        let ratio = (start.elapsed().as_secs_f32() / timeout.as_secs_f32()).clamp(0.0, 0.98);
+        let span = (END_PERCENT - START_PERCENT) as f32;
+        let percent = START_PERCENT + (span * ratio) as u8;
+        on_progress(percent);
         tokio::time::sleep(std::time::Duration::from_millis(500)).await;
     }
 
@@ -258,15 +316,9 @@ pub async fn wait_for_health_async(port: u16, timeout_secs: u64) -> bool {
 
 pub fn wait_for_health(_host: &str, port: u16, timeout_secs: u64) -> bool {
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(timeout_secs);
-    let addr = format!("127.0.0.1:{port}");
 
     while std::time::Instant::now() < deadline {
-        if std::net::TcpStream::connect_timeout(
-            &addr.parse().expect("valid localhost address"),
-            std::time::Duration::from_millis(800),
-        )
-        .is_ok()
-        {
+        if check_http_health(port) {
             return true;
         }
         std::thread::sleep(std::time::Duration::from_millis(500));

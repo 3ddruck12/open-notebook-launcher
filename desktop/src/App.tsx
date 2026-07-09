@@ -10,16 +10,20 @@ import { EncryptionScreen } from "./screens/EncryptionScreen";
 import { DashboardScreen } from "./screens/DashboardScreen";
 import { LogsScreen } from "./screens/LogsScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
+import { StartScreen } from "./screens/StartScreen";
 import { AppUpdateProvider, useAppUpdateContext } from "./contexts/AppUpdateContext";
 import { UpdateBanner } from "./components/UpdateBanner";
 
 function getInitialScreen(config: AppConfig): Screen {
+  if (config.onboardingComplete && config.openNotebookDirectly) return "splash";
   if (config.onboardingComplete) return "dashboard";
   return "welcome";
 }
 
 function isScreen(value: string): value is Screen {
-  return ["welcome", "docker", "encryption", "dashboard", "logs", "settings"].includes(value);
+  return ["welcome", "docker", "encryption", "splash", "dashboard", "logs", "settings"].includes(
+    value,
+  );
 }
 
 interface AppRoutesProps {
@@ -87,9 +91,14 @@ function AppRoutes({ onLanguageChange }: AppRoutesProps) {
       setScreen("dashboard");
     });
 
+    const unlistenComplete = listen("launch-complete", () => {
+      setLaunchError("");
+    });
+
     return () => {
       void unlistenNavigate.then((unlisten) => unlisten());
       void unlistenError.then((unlisten) => unlisten());
+      void unlistenComplete.then((unlisten) => unlisten());
     };
   }, []);
 
@@ -104,7 +113,7 @@ function AppRoutes({ onLanguageChange }: AppRoutesProps) {
     setConfig(normalized);
     onLanguageChange(normalizeLanguage(normalized.language));
     if (normalized.onboardingComplete) {
-      setScreen("dashboard");
+      setScreen(normalized.openNotebookDirectly ? "splash" : "dashboard");
     }
   }
 
@@ -145,6 +154,8 @@ function AppRoutes({ onLanguageChange }: AppRoutesProps) {
           onBack={() => setScreen("docker")}
         />
       );
+    case "splash":
+      return <StartScreen />;
     case "logs":
       return <LogsScreen onBack={() => setScreen("dashboard")} />;
     case "settings":
