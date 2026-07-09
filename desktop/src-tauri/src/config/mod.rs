@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::io::Write;
 use std::path::{Path, PathBuf};
 use thiserror::Error;
 use uuid::Uuid;
@@ -215,6 +214,7 @@ fn write_secret_file(path: &Path, content: &str) -> Result<(), ConfigError> {
     #[cfg(unix)]
     {
         use std::fs::OpenOptions;
+        use std::io::Write;
         use std::os::unix::fs::OpenOptionsExt;
 
         let mut file = OpenOptions::new()
@@ -228,7 +228,10 @@ fn write_secret_file(path: &Path, content: &str) -> Result<(), ConfigError> {
     }
 
     #[cfg(not(unix))]
-    fs::write(path, content)
+    {
+        fs::write(path, content)?;
+        Ok(())
+    }
 }
 
 pub fn save_config(config: &AppConfig) -> Result<(), ConfigError> {
